@@ -9,6 +9,8 @@ import kr.dogfoot.hwplib.object.bodytext.control.table.Cell;
 import kr.dogfoot.hwplib.object.bodytext.control.table.Row;
 import kr.dogfoot.hwplib.object.bodytext.paragraph.Paragraph;
 import kr.dogfoot.hwplib.reader.HWPReader;
+import org.example.model.TableResult;
+
 
 import java.io.File;
 import java.util.ArrayList;
@@ -21,33 +23,29 @@ public class HwpTableExtractor {
      * keyword: 찾을 제목(문자열). 해당 문단을 찾고 그 "다음 문단"에서 표 제어(ControlTable)를 찾는다.
      * 반환: 표의 행-열 텍스트 목록 (빈 리스트면 표를 못 찾음)
      */
-    public List<List<String>> extract(File[] hwpFiles, String keyword) {
-        List<List<String>> result = new ArrayList<>();
+    public List<TableResult> extractTables(File[] hwpFiles, String[] keywords) {
+        List<TableResult> result = new ArrayList<>();
 
-        if (hwpFiles == null || hwpFiles.length == 0) {
-            return result;
-        }
+        if (hwpFiles == null || hwpFiles.length == 0) return result;
+        if (keywords == null || keywords.length == 0) return result;
 
         for (File file : hwpFiles) {
             if (file == null || !file.exists() || !file.isFile()) continue;
 
-            HWPFile hwp = null;
+            HWPFile hwp;
             try {
                 hwp = HWPReader.fromFile(file.getAbsolutePath());
             } catch (Exception e) {
-                System.out.println("파일 읽기 실패: " + file.getName() + " -> " + e.getMessage());
+                System.out.println("파일 읽기 실패: " + file.getName());
                 continue;
             }
 
-            if (hwp == null || hwp.getBodyText() == null) {
-                System.out.println("읽을 수 없는 HWP (null): " + file.getName());
-                continue;
-            }
-
-            List<List<String>> found = extractFromSingleHwp(hwp, keyword);
-            if (!found.isEmpty()) {
-                System.out.println("표 발견: " + file.getName());
-                result.addAll(found); // 여러 파일의 표 결과 누적
+            for (String keyword : keywords) {
+                List<List<String>> table = extractFromSingleHwp(hwp, keyword);
+                if (!table.isEmpty()) {
+                    result.add(new TableResult(file.getName(), keyword, table));
+                    System.out.println("표 발견: " + file.getName());
+                }
             }
         }
 
@@ -126,22 +124,15 @@ public class HwpTableExtractor {
         return rowsOut;
     }
 
+
     // Paragraph에서 안전하게 텍스트 추출 (null-safe)
     private String safeGetParagraphText(Paragraph p) {
         try {
             // Paragraph.getNormalString() 이 존재하면 사용
             String s = p.getNormalString();
-            if (s != null) return s.trim();
+            return normalize(s);
+
         } catch (Throwable ignored) {}
-
-//        try {
-//            // 대체 접근 (구조에 따라 다름)
-//            if (p.getText() != null) {
-//                String s = p.getText().getNormalString();
-//                if (s != null) return s.trim();
-//            }
-//        } catch (Throwable ignored) {}
-
         return null;
     }
 
@@ -151,23 +142,29 @@ public class HwpTableExtractor {
         try {
             // 대부분의 구현에서 cell.getParagraphList().getNormalString() 으로 전체 셀텍스트를 얻음
             String s = cell.getParagraphList().getNormalString();
-            if (s != null) return s.trim();
+            return normalize(s);
         } catch (Throwable ignored) {}
 
         // fallback: 각 paragraph를 순회하여 합침
         try {
             // cell.getParagraphList() 객체는 iterable일 수 있으므로 for-each로 합치기
             StringBuilder sb = new StringBuilder();
-            Iterable<?> paraIterable = (Iterable<?>) cell.getParagraphList();
+            Iterable<?> paraIterable = cell.getParagraphList();
             for (Object obj : paraIterable) {
                 if (obj instanceof Paragraph) {
-                    String t = safeGetParagraphText((Paragraph) obj);
-                    if (t != null) sb.append(t);
+                    sb.append(safeGetParagraphText((Paragraph) obj)).append(" ");
                 }
             }
-            return sb.toString().trim();
+            return normalize(sb.toString());
         } catch (Throwable ignored) {}
 
         return "";
+    }
+
+    private String normalize(String text) {
+        if (text == null) return "";
+        return text
+                .replaceAll("\\s+", " ")   // **중간 다중 공백 → 1칸**
+                .trim();
     }
 }

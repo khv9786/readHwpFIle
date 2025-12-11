@@ -3,6 +3,7 @@ package org.example;
 import org.example.excel.ExcelWriter;
 import org.example.file.FileManager;
 import org.example.hwp.HwpTableExtractor;
+import org.example.model.TableResult;
 
 import java.io.File;
 import java.util.List;
@@ -30,14 +31,14 @@ public class Main {
             if (hwpFiles == null) {continue;}
 
 
-            System.out.print("표 제목(키워드) 입력: ex) 일반현황 ");
-            String keyword = sc.nextLine();
+            System.out.print("표 제목(키워드) 입력: ex) 일반 현황, 수로현황 ... etc ");
+            String[] keywords = sc.nextLine().split(",");
 
             HwpTableExtractor extractor = new HwpTableExtractor();
-            List<List<String>> table = extractor.extract(hwpFiles, keyword);
+            List<TableResult> tableResult = extractor.extractTables(hwpFiles, keywords);
 
             ExcelWriter writer = new ExcelWriter();
-            writer.write(path, table);
+            writer.write(path, tableResult);
 
             System.out.println("반복하려면 1, 종료하려면 2");
             String cmd = sc.nextLine();
