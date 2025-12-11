@@ -1,17 +1,49 @@
 package org.example;
 
-//TIP 코드를 <b>실행</b>하려면 <shortcut actionId="Run"/>을(를) 누르거나
-// 에디터 여백에 있는 <icon src="AllIcons.Actions.Execute"/> 아이콘을 클릭하세요.
-public class Main {
-    public static void main(String[] args) {
-        //TIP 캐럿을 강조 표시된 텍스트에 놓고 <shortcut actionId="ShowIntentionActions"/>을(를) 누르면
-        // IntelliJ IDEA이(가) 수정을 제안하는 것을 확인할 수 있습니다.
-        System.out.printf("Hello and welcome!");
+import org.example.excel.ExcelWriter;
+import org.example.file.FileManager;
+import org.example.hwp.HwpTableExtractor;
 
-        for (int i = 1; i <= 5; i++) {
-            //TIP <shortcut actionId="Debug"/>을(를) 눌러 코드 디버그를 시작하세요. 1개의 <icon src="AllIcons.Debugger.Db_set_breakpoint"/> 중단점을 설정해 드렸습니다
-            // 언제든 <shortcut actionId="ToggleLineBreakpoint"/>을(를) 눌러 중단점을 더 추가할 수 있습니다.
-            System.out.println("i = " + i);
+import java.io.File;
+import java.util.List;
+import java.util.Scanner;
+
+
+public class Main {
+
+    private static FileManager fileManager;
+
+
+    public static void main(String[] args) throws Exception {
+        fileManager = new FileManager();
+        Scanner sc = new Scanner(System.in);
+
+        while (true) {
+            System.out.print("HWP 경로 입력: ");
+            String path = sc.nextLine();
+
+            if (path == null) {
+                System.out.println("올바르지 않은 경로 입력");
+                continue;
+            }
+            File[] hwpFiles = fileManager.hasFileDir(path);
+            if (hwpFiles == null) {continue;}
+
+
+            System.out.print("표 제목(키워드) 입력: ex) 일반현황 ");
+            String keyword = sc.nextLine();
+
+            HwpTableExtractor extractor = new HwpTableExtractor();
+            List<List<String>> table = extractor.extract(hwpFiles, keyword);
+
+            ExcelWriter writer = new ExcelWriter();
+            writer.write(path, table);
+
+            System.out.println("반복하려면 1, 종료하려면 2");
+            String cmd = sc.nextLine();
+            if(cmd.equals("2")){
+                break;
+            }
         }
     }
 }
